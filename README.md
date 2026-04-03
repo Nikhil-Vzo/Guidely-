@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Nikhil-Vzo/Guidely-/main/logo.png" alt="Guidely Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/Nikhil-Vzo/Guidely-/main/public/logo.png" alt="Guidely Logo" width="120" />
   <h1>Guidely</h1>
   <p><strong>Your Career Journey Starts Here</strong></p>
   <p>Clear guidance for Class 10–12 students and parents: aptitude quizzes, deep career maps, nearby colleges, interactive timelines, and schemes.</p>
