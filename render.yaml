@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: guidely
+    runtime: node
+    region: singapore           # closest to India
+    plan: free
+
+    # Build
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+    # Environment variables — set these in the Render dashboard
+    # DO NOT commit real secrets to this file
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_SUPABASE_URL
+        sync: false             # set manually in Render dashboard
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false             # set manually in Render dashboard
+
+    # Health check
+    healthCheckPath: /
+
+    # Auto-deploy on push to main
+    autoDeploy: true
