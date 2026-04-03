@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./client/public/logo.png" alt="Guidely Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/Nikhil-Vzo/Guidely-/main/client/public/logo.png" alt="Guidely Logo" width="120" />
   <h1>Guidely</h1>
   <p><strong>Your Career Journey Starts Here</strong></p>
   <p>Clear guidance for Class 10–12 students and parents: aptitude quizzes, deep career maps, nearby colleges, interactive timelines, and schemes.</p>
@@ -18,12 +18,10 @@
 
 ## 🏆 Built by Team **Code_moses** for SIH 2025
 
-| Role | Member |
-| :--- | :--- |
-| **Frontend/Engineering** | Nikhil Yadav |
-| **Developer** | Ritika Jinwani |
-| **Developer** | Sonal Singh |
-| **Developer** | Naman Kumar |
+- **Nikhil Yadav**
+- **Ritika Jinwani**
+- **Sonal Singh**
+- **Naman Kumar**
 
 ---
 
@@ -76,4 +74,4 @@ You will also need a [Supabase](https://supabase.com) project with Authenticatio
 
 ## 🔒 License
 
-This project was built for **Smart India Hackathon (SIH) 2025** by team **Code_moses**. All rights reserved by the respective team members.
+This project was built for **Smart India Hackathon (SIH) 2025** by team **Code_moses**.
