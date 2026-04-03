@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Nikhil-Vzo/Guidely-/main/client/public/logo.png" alt="Guidely Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/Nikhil-Vzo/Guidely-/main/logo.png" alt="Guidely Logo" width="120" />
   <h1>Guidely</h1>
   <p><strong>Your Career Journey Starts Here</strong></p>
   <p>Clear guidance for Class 10–12 students and parents: aptitude quizzes, deep career maps, nearby colleges, interactive timelines, and schemes.</p>
@@ -14,14 +14,7 @@
   <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
 </div>
 
----
 
-## 🏆 Built by Team **Code_moses** for SIH 2025
-
-- **Nikhil Yadav**
-- **Ritika Jinwani**
-- **Sonal Singh**
-- **Naman Kumar**
 
 ---
 
