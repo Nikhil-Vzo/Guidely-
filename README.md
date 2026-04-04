@@ -18,6 +18,8 @@
 
 ---
 
+**📄 [View Full Project Idea & Explanation Presentation (Guidely.pdf)](./Guidely.pdf)**
+
 ## 🎯 What Problem Does Guidely Solve?
 
 Indian students finishing Class 10 face one of the most consequential decisions of their lives — choosing a stream — with almost no structured guidance. Parents are often equally confused. Career counsellors are scarce, expensive, or unavailable in rural and semi-urban areas.
