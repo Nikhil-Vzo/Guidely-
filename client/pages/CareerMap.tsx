@@ -2,10 +2,13 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import {
   GraduationCap, Target, BookOpen, TrendingUp,
-  ChevronRight, IndianRupee, Zap,
+  ChevronRight, Zap,
   Microscope, LineChart, Landmark, Hammer, Sparkles, Building2,
+  Award, RotateCcw, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAppSelector } from "@/store";
+import type { QuizResult, StreamKey as QuizStreamKey } from "@/store/slices/quizSlice";
 
 /* ─────────────────────────────────────────────
    DATA LAYER
@@ -165,23 +168,116 @@ const STREAMS: Record<StreamKey, {
 };
 
 /* ─────────────────────────────────────────────
+   CAREER REPORT CARD  (shown when quiz result exists)
+───────────────────────────────────────────── */
+const STREAM_COLORS: Record<string, { bar: string; pill: string; label: string }> = {
+  science:    { bar: "bg-sky-500",    pill: "bg-sky-50 text-sky-700 border-sky-200",         label: "Science" },
+  commerce:   { bar: "bg-emerald-500",pill: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Commerce" },
+  arts:       { bar: "bg-purple-500", pill: "bg-purple-50 text-purple-700 border-purple-200", label: "Arts" },
+  vocational: { bar: "bg-orange-500", pill: "bg-orange-50 text-orange-700 border-orange-200", label: "Vocational" },
+};
+
+function CareerReportCard({ result }: { result: QuizResult }) {
+  const [expanded, setExpanded] = React.useState(true);
+  const { ranked, personalityTag } = result.career_report;
+  const topStream = ranked[0];
+  const topColor  = STREAM_COLORS[topStream.key];
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[2rem] border border-white shadow-lg backdrop-blur-xl"
+      style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.92) 0%, rgba(109,40,217,0.88) 50%, rgba(219,39,119,0.85) 100%)" }}
+    >
+      {/* Decorative blob */}
+      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl opacity-20 bg-white pointer-events-none" />
+      <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-3xl opacity-10 bg-white pointer-events-none" />
+
+      <div className="relative z-10 p-6 sm:p-8">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-xl bg-white/20">
+                <Award className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white/80 text-xs font-bold uppercase tracking-widest">Your Career Report</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+              {personalityTag}
+            </h2>
+            <p className="text-white/70 text-sm font-medium mt-1">
+              Best-fit stream: <span className="text-white font-bold">{STREAMS[topStream.key as StreamKey]?.label ?? topStream.key}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="flex-shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white"
+            aria-label={expanded ? "Collapse" : "Expand"}
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+
+        {/* Animated stream score bars */}
+        {expanded && (
+          <div className="space-y-3 mb-6">
+            {ranked.map((r, i) => {
+              const col = STREAM_COLORS[r.key];
+              return (
+                <div key={r.key}>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-white/90 text-sm font-semibold">
+                      {i === 0 && <span className="mr-1.5">🏆</span>}
+                      {STREAMS[r.key as StreamKey]?.label ?? r.key}
+                    </span>
+                    <span className="text-white font-black text-sm">{r.pct}%</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${col.bar} transition-all duration-700`}
+                      style={{ width: `${r.pct}%`, opacity: i === 0 ? 1 : 0.65 }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/quiz"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-colors border border-white/20"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Retake Quiz
+          </Link>
+          <a
+            href="#explore"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-violet-700 text-xs font-bold hover:bg-white/90 transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Explore {STREAMS[topStream.key as StreamKey]?.label.split(" ")[0]} Careers
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    COMPONENT
 ───────────────────────────────────────────── */
 export default function CareerMap() {
   const [active, setActive] = React.useState<StreamKey>("science");
 
-  // Pick up quiz result logically
+  // Pick up quiz result from Redux store (single source of truth)
+  const quizResult = useAppSelector((s) => s.quiz.result);
+
   React.useEffect(() => {
-    const raw = localStorage.getItem("guidely:quiz:result");
-    if (raw) {
-      try {
-        const result = JSON.parse(raw);
-        if (result?.top_stream && STREAMS[result.top_stream as StreamKey]) {
-          setActive(result.top_stream as StreamKey);
-        }
-      } catch (_) {}
+    if (quizResult?.top_stream && STREAMS[quizResult.top_stream as StreamKey]) {
+      setActive(quizResult.top_stream as StreamKey);
     }
-  }, []);
+  }, [quizResult]);
 
   const S = STREAMS[active];
 
@@ -191,17 +287,22 @@ export default function CareerMap() {
       <div className="fixed inset-0 pointer-events-none bg-white/40" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16 relative z-10 space-y-10 border-white/50">
-        
-        {/* Header - Soft, elegant brand typography */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
+
+        {/* ── CAREER REPORT (only when quiz has been taken) ── */}
+        {quizResult && <CareerReportCard result={quizResult} />}
+
+        {/* Header */}
+        <div id="explore" className="text-center space-y-4 max-w-3xl mx-auto scroll-mt-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md shadow-sm border border-white/50 text-xs font-semibold text-primary uppercase tracking-widest mx-auto">
             <Sparkles className="w-3.5 h-3.5" /> Course & Career map 
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground leading-[1.15]">
-            Find your path.
+            {quizResult ? "Your recommended path" : "Find your path."}
           </h1>
           <p className="text-base md:text-lg text-muted-foreground font-medium max-w-xl mx-auto leading-relaxed">
-            Discover exactly what each stream unlocks—from professional degrees and government roles to high-growth industries.
+            {quizResult
+              ? "Based on your quiz, here's your top-fit stream. Explore degrees, careers, and exams below."
+              : "Discover exactly what each stream unlocks—from professional degrees and government roles to high-growth industries."}
           </p>
         </div>
 

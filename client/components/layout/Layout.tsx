@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { getSupabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui/use-toast";
+import OfflineBanner from "@/components/layout/OfflineBanner";
 
 /* ── Email confirmation banner ── */
 function ConfirmEmailBanner({ user }: { user: User }) {
@@ -208,6 +209,8 @@ function Footer() {
 export default function Layout() {
   return (
     <div className="min-h-dvh flex flex-col">
+      {/* Global offline status banner + PWA install prompt */}
+      <OfflineBanner />
       <Header />
       {/* Extra bottom padding on mobile so content isn't hidden behind the nav */}
       <main className="flex-1 pb-16 md:pb-0">

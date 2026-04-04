@@ -109,6 +109,14 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .bg-guidely-gradient {
     background-image: linear-gradient(
       to top,
@@ -117,4 +125,15 @@
       #fff7eb 100%
     );
   }
+}
+
+/* ── PWA / Offline banner animations ─────────────────────────────── */
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }

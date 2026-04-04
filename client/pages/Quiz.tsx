@@ -1,26 +1,31 @@
 import * as React from "react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { getSupabase } from "@/lib/supabase";
+import { idbSetAll, idbGetAll } from "@/lib/idb";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  setQuestions,
+  setLoading,
+  setAnswer,
+  setCurrentIdx,
+  setSubmitting,
+  setResult,
+  resetQuiz,
+  type Question,
+  type StreamKey,
+} from "@/store/slices/quizSlice";
+import { setCachedAt } from "@/store/slices/offlineSlice";
 import {
   ArrowRight, ArrowLeft, CheckCircle2, BookOpen,
   Lightbulb, Brain, Target, GraduationCap, Briefcase,
-  Star, TrendingUp, RotateCcw, Zap, Award, ChevronRight,
+  Star, TrendingUp, RotateCcw, Zap, Award, ChevronRight, WifiOff,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
-type StreamKey = "arts" | "science" | "commerce" | "vocational";
-
-type Question = {
-  id: string;
-  text: string;
-  category: string;
-  weight_map: Record<StreamKey, number>;
-};
-
 type ScaleOption = { label: string; sublabel: string; value: number; color: string; activeClass: string };
 
 /* ─────────────────────────────────────────────
@@ -123,39 +128,65 @@ function getPersonalityTag(ranked: { key: StreamKey }[]): string {
    MAIN COMPONENT
 ───────────────────────────────────────────── */
 export default function Quiz() {
-  const navigate = useNavigate();
-  const [questions, setQuestions]   = useState<Question[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [answers, setAnswers]       = useState<Record<string, number>>({});
-  const [submitted, setSubmitted]   = useState(false);
-  const [saving, setSaving]         = useState(false);
-  const [currentIdx, setCurrentIdx] = useState(0);
+  const navigate    = useNavigate();
+  const dispatch    = useAppDispatch();
+  const { questions, answers, currentIdx, status, cachedFromOffline } = useAppSelector((s) => s.quiz);
+  const { isOnline } = useAppSelector((s) => s.offline);
 
-  // If already taken quiz → show banner to go to results
   const alreadyTaken = !!localStorage.getItem("guidely:quiz:scores");
 
+  // ── Fetch questions (network first → IndexedDB fallback) ──────────────────
   useEffect(() => {
-    async function fetch() {
-      const supabase = getSupabase();
-      if (!supabase) { setLoading(false); return; }
-      try {
-        const { data, error } = await supabase
-          .from("quiz_questions")
-          .select("id, text, category, weight_map")
-          .eq("active", true)
-          .order("order_index", { ascending: true });
-        if (!error) setQuestions(data || []);
-      } catch (err) {
-        console.error("Quiz fetch err:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, []);
+    async function loadQuestions() {
+      dispatch(setLoading());
 
-  const scores  = useMemo(() => computeScores(questions, answers), [questions, answers]);
-  const ranked  = useMemo(() => rankStreams(scores), [scores]);
+      // Try network first
+      const supabase = getSupabase();
+      if (supabase && isOnline) {
+        try {
+          const { data, error } = await supabase
+            .from("quiz_questions")
+            .select("id, text, category, weight_map")
+            .eq("active", true)
+            .order("order_index", { ascending: true });
+
+          if (!error && data && data.length > 0) {
+            dispatch(setQuestions({ questions: data, fromCache: false }));
+            // Save to IndexedDB for offline use
+            await idbSetAll("quiz_questions", data);
+            dispatch(setCachedAt(new Date().toISOString()));
+            return;
+          }
+        } catch (err) {
+          console.warn("Network fetch failed, trying IndexedDB cache…", err);
+        }
+      }
+
+      // Fallback: IndexedDB cache
+      try {
+        const cached = await idbGetAll<Question>("quiz_questions");
+        if (cached.length > 0) {
+          dispatch(setQuestions({ questions: cached, fromCache: true }));
+          return;
+        }
+      } catch (err) {
+        console.error("IndexedDB read failed:", err);
+      }
+
+      // Nothing available
+      dispatch(setQuestions({ questions: [], fromCache: false }));
+    }
+
+    loadQuestions();
+
+    // Reset answers when re-mounting
+    return () => {
+      /* intentionally do NOT resetQuiz() here — user might navigate away mid-quiz */
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const scores   = useMemo(() => computeScores(questions, answers), [questions, answers]);
+  const ranked   = useMemo(() => rankStreams(scores), [scores]);
   const maxScore = useMemo(() => Math.max(1, ...ranked.map((r) => Math.abs(r.score))), [ranked]);
 
   const total      = questions.length;
@@ -169,29 +200,42 @@ export default function Quiz() {
 
   async function handleSubmit() {
     const supabase = getSupabase();
-    setSaving(true);
+    dispatch(setSubmitting());
     const top = ranked[0].key;
     const payload = {
       session_id: `session_${Date.now()}`,
-      scores, top_stream: top, answers,
+      scores,
+      top_stream: top,
+      answers,
       career_report: {
         personalityTag: getPersonalityTag(ranked),
-        ranked: ranked.map((r) => ({ key: r.key, pct: toPercent(r.score, maxScore) })),
+        ranked: ranked.map((r) => ({ key: r.key, score: r.score, pct: toPercent(r.score, maxScore) })),
       },
+      saved_at: new Date().toISOString(),
     };
-    if (supabase) {
-      const { data: { user } } = await supabase.auth.getUser();
-      try { await supabase.from("quiz_results").insert({ ...payload, user_id: user?.id ?? null }); } catch (_) {}
+
+    // Save to Supabase if online
+    if (supabase && isOnline) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("quiz_results").insert({ ...payload, user_id: user?.id ?? null });
+      } catch (_) { /* offline or auth error — result still saved locally */ }
     }
-    localStorage.setItem("guidely:quiz:scores", JSON.stringify(scores));
-    localStorage.setItem("guidely:quiz:result", JSON.stringify(payload));
-    setSaving(false);
-    // Redirect straight to career map with results
+
+    // Dispatch to Redux (also auto-saves to localStorage via slice)
+    dispatch(setResult(payload));
+
+    // Also persist to IndexedDB
+    try {
+      const { idbPut } = await import("@/lib/idb");
+      await idbPut("quiz_result", payload, "latest");
+    } catch (_) {}
+
     navigate("/career-map");
   }
 
   /* ── Loading ── */
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <div className="relative w-16 h-16">
@@ -222,6 +266,14 @@ export default function Quiz() {
     <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #f8fafc 0%, #f3f0ff 60%, #fdf2f8 100%)" }}>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
 
+        {/* ── Offline cache notice ── */}
+        {cachedFromOffline && (
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-orange-50 border border-orange-200 text-orange-700 text-sm font-medium">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Showing offline-cached questions. Your answers will save locally.</span>
+          </div>
+        )}
+
         {/* ── Top bar ── */}
         <div className="bg-white rounded-3xl px-6 py-4 shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-3">
@@ -244,7 +296,7 @@ export default function Quiz() {
             {questions.map((q, i) => (
               <div
                 key={q.id}
-                onClick={() => setCurrentIdx(i)}
+                onClick={() => dispatch(setCurrentIdx(i))}
                 className={`h-1.5 flex-1 rounded-full cursor-pointer transition-all duration-300 ${
                   answers[q.id] !== undefined
                     ? "bg-violet-500"
@@ -286,7 +338,7 @@ export default function Quiz() {
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setAnswers((a) => ({ ...a, [currentQ.id]: opt.value }))}
+                    onClick={() => dispatch(setAnswer({ questionId: currentQ.id, value: opt.value }))}
                     className={`
                       relative flex flex-col items-center justify-center gap-1.5
                       rounded-2xl border-2 p-3 sm:p-4 transition-all duration-150 select-none
@@ -327,7 +379,7 @@ export default function Quiz() {
           <Button
             variant="outline"
             className="rounded-2xl h-12 px-5 gap-2 border-2"
-            onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
+            onClick={() => dispatch(setCurrentIdx(Math.max(0, currentIdx - 1)))}
             disabled={currentIdx === 0}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -339,9 +391,9 @@ export default function Quiz() {
               className="rounded-2xl h-12 px-7 gap-2 font-bold text-white shadow-lg transition-all"
               style={{ background: "linear-gradient(135deg, #7c3aed, #db2777)" }}
               onClick={handleSubmit}
-              disabled={!canSubmitFinal || saving}
+              disabled={!canSubmitFinal || status === "submitting"}
             >
-              {saving ? (
+              {status === "submitting" ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   Generating Report…
@@ -357,7 +409,7 @@ export default function Quiz() {
             <Button
               className="rounded-2xl h-12 px-7 gap-2 font-semibold"
               style={hasSelection ? { background: "linear-gradient(135deg, #7c3aed, #6d28d9)", color: "white" } : {}}
-              onClick={() => setCurrentIdx((i) => i + 1)}
+              onClick={() => dispatch(setCurrentIdx(currentIdx + 1))}
               disabled={!hasSelection}
               variant={hasSelection ? "default" : "outline"}
             >
