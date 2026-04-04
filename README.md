@@ -20,19 +20,7 @@
 
 **📄 [View Full Project Idea & Explanation Presentation (Guidely.pdf)](./Guidely.pdf)**
 
-## 🎯 What Problem Does Guidely Solve?
 
-Indian students finishing Class 10 face one of the most consequential decisions of their lives — choosing a stream — with almost no structured guidance. Parents are often equally confused. Career counsellors are scarce, expensive, or unavailable in rural and semi-urban areas.
-
-Worse: most existing resources assume stable internet. For a student in rural Chhattisgarh on 2G, a career guidance app that fails offline is as useless as no app at all.
-
-**Guidely solves this by being:**
-- 📲 **Installable** — add to home screen like a native app (PWA)
-- ✈️ **Offline-first** — quiz questions, career maps, and resources load from local cache the moment the phone goes offline
-- 🧠 **Intelligent** — the aptitude quiz scores your personality across 4 streams using a weighted Likert scale and generates a personalized career report
-- 🇮🇳 **India-first** — every career, exam, college, and scholarship is relevant to the Indian education system (CBSE, CGPSC, JEE, NEET, UPSC, etc.)
-
----
 
 ## ✨ Features
 
